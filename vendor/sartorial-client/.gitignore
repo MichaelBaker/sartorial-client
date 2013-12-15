@@ -1,2 +1,7 @@
 *.swp
 dist
+*.o
+*.hi
+*.js_hi
+*.js_o
+*.jsexe

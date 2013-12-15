@@ -1,0 +1,22 @@
+name:                sartorial
+version:             0.1.0.0
+license:             MIT
+license-file:        LICENSE
+author:              Michael Baker
+maintainer:          michaeltbaker@gmail.com
+category:            Game
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  hs-source-dirs:      src
+  build-depends:       base       == 4.6.*,
+                       containers == 0.5.0.0
+  exposed-modules:     Sartorial.World,
+                       Sartorial.Room,
+                       Sartorial.Player
+
+executable test
+  main-is:             Spec.hs
+  hs-source-dirs:      test
+  build-depends:       base == 4.6.*, hspec == 1.7.2.1, sartorial

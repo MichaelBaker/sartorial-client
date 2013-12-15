@@ -2,7 +2,7 @@
 
 module Server (gameServer, handleCommand, GameState (..)) where
 
-import Web.Scotty                  (get, post, body, text, file)
+import Web.Scotty                  (get, body, text)
 import Data.Text.Lazy              (pack)
 import Data.ByteString.Lazy.Char8  (unpack)
 import Safe                        (readMay)
@@ -19,15 +19,11 @@ import qualified Data.Map as M
 data GameState = GameState { startingRoom :: Room
                            , world        :: World
                            , players      :: M.Map String Player
-                           , chats        :: M.Map String [String]
                            }
 
 gameServer gameState = do
-  get "/" $ file "vendor/public/index.html"
-
-  post "/command" $ do
-    command <- body
-    liftIO $ print command
+  get "/thing" $ do
+    command  <- body
     response <- liftIO $ atomically $ do
       currentState <- readTVar gameState
       let (newGameState, response) = handleCommand currentState $ bytestringToString command
@@ -40,25 +36,12 @@ handleCommand gameState commandText = case readMay commandText of
                                         Nothing      -> (gameState, InvalidRequestResponse)
 
 process gameState PlayerListRequest        = (gameState, PlayerListResponse $ M.keys $ players gameState)
-
 process gameState (AddPlayerRequest name)  = (newGameState, SuccessResponse)
-  where newGameState = gameState { players = newPlayers, chats = newChats }
+  where newGameState = gameState { players = newPlayers }
         player       = freshPlayer { playerName = name }
-        (newPlayers, newChats, response) = case placePlayerInRoom (world gameState) player (startingRoom gameState) of
-                                   Just player -> (M.insert name player $ players gameState, M.insert name [] $ chats gameState, SuccessResponse)
-                                   Nothing     -> (players gameState, chats gameState, ErrorResponse "Room does not exist")
-
-process gameState (ChatMessageRequest chatPlayer chatMessage) = (newGameState, SuccessResponse)
-  where newGameState       = gameState { chats = newChats }
-        newChats           = M.map updateMessages $ chats gameState
-        updateMessages old = old ++ [newMessage]
-        newMessage         = chatPlayer ++ ": " ++ chatMessage
-
-process gameState (ChatUpdatesRequest chatPlayer) = (newGameState, ChatUpdatesResponse messages)
-  where messages     = M.findWithDefault [] chatPlayer (chats gameState)
-        newGameState = gameState { chats = M.insert chatPlayer [] (chats gameState) }
-
-process gameState _ = (gameState, InvalidRequestResponse)
+        (newPlayers, response) = case placePlayerInRoom (world gameState) player (startingRoom gameState) of
+                                   Just player -> (M.insert name player $ players gameState, SuccessResponse)
+                                   Nothing     -> (players gameState, ErrorResponse "Room does not exist")
 
 bytestringToString = unpack
 stringToText       = pack
