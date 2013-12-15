@@ -1,0 +1,45 @@
+name:                sartorial-server
+version:             0.1.0.0
+license:             MIT
+license-file:        LICENSE
+author:              Michael Baker
+maintainer:          michaeltbaker@gmail.com
+category:            Game
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  hs-source-dirs:      src
+  build-depends:       base         == 4.6.*,
+                       scotty       == 0.6.0,
+                       safe         == 0.3.3,
+                       text         == 0.11.3.1,
+                       bytestring   == 0.10.0.2,
+                       sartorial    == 0.1.0.0,
+                       transformers == 0.3.0.0,
+                       containers   == 0.5.0.0,
+                       stm          == 2.4.2
+  exposed-modules:     Server, Protocol
+
+executable sartorial-server
+  main-is:             Main.hs
+  hs-source-dirs:      src
+  build-depends:       base         == 4.6.*,
+                       scotty       == 0.6.0,
+                       safe         == 0.3.3,
+                       text         == 0.11.3.1,
+                       bytestring   == 0.10.0.2,
+                       sartorial    == 0.1.0.0,
+                       transformers == 0.3.0.0,
+                       containers   == 0.5.0.0,
+                       stm          == 2.4.2,
+                       sartorial-server
+
+executable test
+  main-is:             Spec.hs
+  hs-source-dirs:      test
+  build-depends:       base       == 4.6.*,
+                       hspec      == 1.7.2.1,
+                       sartorial  == 0.1.0.0,
+                       containers == 0.5.0.0,
+                       sartorial-server
