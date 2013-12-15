@@ -10,6 +10,8 @@ cabal-version:       >=1.10
 executable main
   main-is:             Main.hs
   build-depends:       base >=4.7 && <4.8,
-                       ghcjs-base == 0.1.0.0
+                       ghcjs-base   == 0.1.0.0,
+                       ghcjs-jquery == 0.1.0.0,
+                       sartorial-server
   hs-source-dirs:      src
   default-language:    Haskell2010
