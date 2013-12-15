@@ -1,62 +1,63 @@
-{-# LANGUAGE JavaScriptFFI #-}
+{-# LANGUAGE JavaScriptFFI, OverloadedStrings #-}
 
-import qualified GHCJS.Foreign as F
-import GHCJS.Types
 import GHCJS.Marshal
-import GHCJS.Foreign (ToJSString(..), FromJSString(..), newObj, toJSBool, jsNull, jsFalse, jsTrue, mvarRef)
+import GHCJS.Foreign
+import GHCJS.Types
 import Control.Concurrent (threadDelay)
-import JavaScript.JQuery
-import JavaScript.JQuery.Internal
-import Data.Text (Text, pack, unpack)
-import Control.Applicative
-import Data.Maybe
-import Control.Monad
+import Data.Text          (pack, unpack)
 import Data.Default
+import JavaScript.JQuery  (click, select)
 import Protocol           (Request (..), Response (..))
 
+foreign import javascript interruptible
+  "jQuery.ajax('/command', {type: 'POST', contentType: 'text/plain; charset=UTF-8', data: $1}).always(function (data) { $c(data) });"
+  sendAjax :: JSString -> IO JSString
+
+foreign import javascript safe
+  "jQuery('#add-player-submit').click(function () { h$run(h$addPlayer($('#add-player-input').val())) })"
+  addPlayerCallback :: IO ()
+
+foreign import javascript unsafe
+  "jQuery($1).val()"
+  getValue :: JSString -> IO JSString
+
+foreign import javascript unsafe
+  "jQuery($1).html($2)"
+  setHtml :: JSString -> JSString -> IO ()
+
 main = do
+  putStrLn "Starting Haskell"
   setup
   loop
 
 setup = do
-  playerNameInput <- getElement "#add-player-input"
-  submitButton    <- getElement "#add-player-submit"
-  click (handleNewPlayerName playerNameInput) def submitButton
-
-handleNewPlayerName element _ = do
-  name <- getVal element
-  sendCommand $ AddPlayerRequest (unpack name)
+  playerSubmitButton <- select "#add-player-submit"
+  click addPlayer def playerSubmitButton
   return ()
 
-getElement = select . pack 
+addPlayer _ = do
+  name <- getValue "#add-player-input"
+  sendCommand $ AddPlayerRequest $ fromJSString name
+  return ()
 
 loop = do
   updatePlayerList
   threadDelay 1000000
   loop
 
-sendCommand :: Request -> IO AjaxResult
+sendCommand :: Request -> IO Response
 sendCommand command = do
-  os        <- toJSRef (def { asMethod = POST } :: AjaxSettings)
-  jsCommand <- toJSRef $ show command
-  F.setProp (pack "data") jsCommand os
-  arr <- jq_ajax (toJSString "command") os
-  dat <- F.getProp (pack "data") arr
-  let d = if isNull dat then Nothing else Just (fromJSString dat)
-  status <- fromMaybe 0 <$> (fromJSRef =<< F.getProp (pack "status") arr)
-  return (AjaxResult status d)
+  result <- sendAjax $ toJSString $ show command
+  let response = fromJSString result
+  putStrLn response
+  return $ read response
 
 updatePlayerList = do
   result  <- sendCommand PlayerListRequest
-  case arData result of
-    Nothing       -> return ()
-    Just response -> do
-      case read $ unpack response of
-        (PlayerListResponse names) -> do
-          let nameList = concat $ map wrapLi names
-          element <- select $ pack "#current-players"
-          setHtml (pack nameList) element
-          return ()
-        _ -> putStrLn "Got an invalid response to command PlayerListRequest"
+  case result of
+    (PlayerListResponse names) -> do
+      setHtml "#current-players" $ toJSString $ concatMap (wrapLi) names
+      return ()
+    _ -> putStrLn $ "Got an invalid response of " ++ show result ++ " to command PlayerListRequest"
 
 wrapLi x = "<li>" ++ x ++ "</li>"
