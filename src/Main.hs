@@ -3,11 +3,13 @@
 import GHCJS.Marshal
 import GHCJS.Foreign
 import GHCJS.Types
-import Control.Concurrent (threadDelay)
-import Data.Text          (pack, unpack)
+import Control.Concurrent          (threadDelay)
+import Data.Text                   (pack, unpack)
 import Data.Default
-import JavaScript.JQuery  (click, select)
-import Protocol           (Request (..), Response (..))
+import JavaScript.JQuery           (click, select)
+import Protocol                    (Request (..), Response (..))
+import Control.Concurrent.STM      (atomically)
+import Control.Concurrent.STM.TVar (newTVarIO, writeTVar)
 
 foreign import javascript interruptible
   "jQuery.ajax('/command', {type: 'POST', contentType: 'text/plain; charset=UTF-8', data: $1}).always(function (data) { $c(data) });"
@@ -25,18 +27,29 @@ foreign import javascript unsafe
   "jQuery($1).html($2)"
   setHtml :: JSString -> JSString -> IO ()
 
+foreign import javascript unsafe
+ "jQuery($1).hide()"
+ hideElement :: JSString -> IO ()
+
+foreign import javascript unsafe
+ "jQuery($1).show()"
+ showElement :: JSString -> IO ()
+
 main = do
-  putStrLn "Starting Haskell"
-  setup
+  playerName <- newTVarIO ""
+  setup playerName
   loop
 
-setup = do
+setup playerName = do
   playerSubmitButton <- select "#add-player-submit"
-  click addPlayer def playerSubmitButton
+  click (addPlayer playerName) def playerSubmitButton
   return ()
 
-addPlayer _ = do
+addPlayer playerName _ = do
+  hideElement "#add-player"
   name <- getValue "#add-player-input"
+  atomically  $ writeTVar playerName name
+  showElement "#command"
   sendCommand $ AddPlayerRequest $ fromJSString name
   return ()
 
@@ -49,7 +62,6 @@ sendCommand :: Request -> IO Response
 sendCommand command = do
   result <- sendAjax $ toJSString $ show command
   let response = fromJSString result
-  putStrLn response
   return $ read response
 
 updatePlayerList = do
